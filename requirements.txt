@@ -1,10 +1,6 @@
-<<<<<<< HEAD
 flask
 requests
 beautifulsoup4
-=======
-flask
-requests
-beautifulsoup4
->>>>>>> 7fbbbb82fa0c606b539f545fae8dc48e5f66ccd5
 lxml
+faster-whisper
+gunicorn
