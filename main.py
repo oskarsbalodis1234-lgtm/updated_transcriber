@@ -1,108 +1,50 @@
-<<<<<<< HEAD
 import os
 import zipfile
-import shutil
 
-from downloader import ingest_rss, run_downloads
-from transcriber import run_transcriptions
-
-BASE_DIR = "data"
-PODCAST_NAME = "anchor_podcast"
+from config import BASE_OUTPUT, METADATA_FILE, TXT_DIR, ZIP_PATH, ensure_data_dirs
 
 
-def zip_and_cleanup():
-    folder_path = os.path.join(BASE_DIR, PODCAST_NAME)
-    zip_path = os.path.join(BASE_DIR, f"{PODCAST_NAME}_archive.zip")
-
-    print("\n📦 Creating ZIP archive...")
-
-    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-        for root, dirs, files in os.walk(folder_path):
-            for file in files:
-                full_path = os.path.join(root, file)
-                rel_path = os.path.relpath(full_path, folder_path)
-                zipf.write(full_path, rel_path)
-
-    print(f"📦 ZIP saved to: {zip_path}")
-
-    # 🗑 Safety prompt before deleting
-    confirm = input("Delete original files? (y/n): ")
-
-    if confirm.lower() == "y":
-        try:
-            shutil.rmtree(folder_path)
-            print("🗑 Original files deleted.")
-        except Exception as e:
-            print("❌ Failed to delete files:", e)
-    else:
-        print("❌ Skipped deletion.")
+def log_message(message, log=None):
+    print(message, flush=True)
+    if log:
+        log(message)
 
 
-def main():
-    print("\n🚀 PODCAST PIPELINE STARTED\n")
+def zip_and_cleanup(log=None):
+    files_added = []
+    ensure_data_dirs()
 
-    ingest_rss()
-    run_downloads()
-    run_transcriptions()
+    with zipfile.ZipFile(ZIP_PATH, "w", zipfile.ZIP_DEFLATED) as archive:
+        if os.path.exists(METADATA_FILE):
+            try:
+                archive.write(METADATA_FILE, os.path.relpath(METADATA_FILE, BASE_OUTPUT))
+                files_added.append(os.path.relpath(METADATA_FILE, BASE_OUTPUT))
+            except Exception as e:
+                log_message(f"Failed adding episodes_metadata.json: {str(e)}", log)
 
-    zip_and_cleanup()
+        if os.path.exists(TXT_DIR):
+            for root, _, files in os.walk(TXT_DIR):
+                for file in files:
+                    if not file.endswith(".txt"):
+                        continue
 
-    print("\n✅ ALL DONE")
+                    path = os.path.join(root, file)
+                    arcname = os.path.relpath(path, BASE_OUTPUT)
+                    try:
+                        archive.write(path, arcname)
+                        files_added.append(arcname)
+                    except Exception as e:
+                        log_message(f"Failed adding {file}: {str(e)}", log)
 
+    log_message(f"ZIP created with {len(files_added)} files", log)
 
-if __name__ == "__main__":
-=======
-import os
-import zipfile
-import shutil
+    try:
+        size_mb = os.path.getsize(ZIP_PATH) / (1024 * 1024)
+        log_message(f"ZIP size: {size_mb:.2f} MB", log)
+    except Exception as e:
+        log_message(f"Could not read ZIP size: {str(e)}", log)
 
-from downloader import ingest_rss, run_downloads
-from transcriber import run_transcriptions
-
-BASE_DIR = "data"
-PODCAST_NAME = "anchor_podcast"
-
-
-def zip_and_cleanup():
-    folder_path = os.path.join(BASE_DIR, PODCAST_NAME)
-    zip_path = os.path.join(BASE_DIR, f"{PODCAST_NAME}_archive.zip")
-
-    print("\n📦 Creating ZIP archive...")
-
-    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-        for root, dirs, files in os.walk(folder_path):
-            for file in files:
-                full_path = os.path.join(root, file)
-                rel_path = os.path.relpath(full_path, folder_path)
-                zipf.write(full_path, rel_path)
-
-    print(f"📦 ZIP saved to: {zip_path}")
-
-    # 🗑 Safety prompt before deleting
-    confirm = input("Delete original files? (y/n): ")
-
-    if confirm.lower() == "y":
-        try:
-            shutil.rmtree(folder_path)
-            print("🗑 Original files deleted.")
-        except Exception as e:
-            print("❌ Failed to delete files:", e)
-    else:
-        print("❌ Skipped deletion.")
-
-
-def main():
-    print("\n🚀 PODCAST PIPELINE STARTED\n")
-
-    ingest_rss()
-    run_downloads()
-    run_transcriptions()
-
-    zip_and_cleanup()
-
-    print("\n✅ ALL DONE")
-
-
-if __name__ == "__main__":
->>>>>>> 7fbbbb82fa0c606b539f545fae8dc48e5f66ccd5
-    main()
+    if log:
+        log("ZIP contents (first 20 files):")
+        for file in files_added[:20]:
+            log(f" - {file}")
